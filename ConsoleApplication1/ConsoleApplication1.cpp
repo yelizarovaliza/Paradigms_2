@@ -1,6 +1,51 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <stack>
+#include <deque>
+#include <sstream> // Include for std::istringstream
+#include <string>
+
+class CommandManager {
+private:
+    std::deque<std::pair<int, std::string>> history;
+    std::deque<std::pair<int, std::string>> redoStack;
+
+public:
+    void addCommand(int command, const std::string& state) {
+        if (history.size() == 3) {
+            history.pop_front();
+        }
+        history.push_back({ command, state });
+        redoStack.clear();
+    }
+
+    bool undo(int& command, std::string& state) {
+        if (history.empty()) {
+            std::cout << "No commands to undo." << std::endl;
+            return false;
+        }
+        auto lastCommand = history.back();
+        history.pop_back();
+        command = lastCommand.first;
+        state = lastCommand.second;
+        redoStack.push_back(lastCommand);
+        return true;
+    }
+
+    bool redo(int& command, std::string& state) {
+        if (redoStack.empty()) {
+            std::cout << "No commands to redo." << std::endl;
+            return false;
+        }
+        auto lastCommand = redoStack.back();
+        redoStack.pop_back();
+        command = lastCommand.first;
+        state = lastCommand.second;
+        history.push_back(lastCommand);
+        return true;
+    }
+};
 
 class FileHandler {
 public:
@@ -78,6 +123,7 @@ private:
     size_t* lineSizes;
     int currLine;
     int maxLines;
+    CommandManager commandManager;
 
 public:
     TextEditor() {
@@ -96,12 +142,40 @@ public:
         }
     }
 
+    void saveState(int command) {
+        std::string state;
+        for (int i = 0; i <= currLine; i++) {
+            if (linesArray[i] != NULL) {
+                state += linesArray[i];
+                state += "\n";
+            }
+        }
+        commandManager.addCommand(command, state);
+    }
+
+    void restoreState(const std::string& state) {
+        std::istringstream iss(state);
+        std::string line;
+        currLine = 0;
+        while (std::getline(iss, line)) {
+            if (linesArray[currLine] != NULL) {
+                free(linesArray[currLine]);
+            }
+            linesArray[currLine] = (char*)malloc((line.size() + 1) * sizeof(char));
+            strcpy_s(linesArray[currLine], line.size() + 1, line.c_str());
+            lineSizes[currLine] = line.size() + 1;
+            currLine++;
+        }
+        currLine--;
+    }
+
     void addText() {
         char text[128];
         std::cout << "Enter text to append: ";
         std::cin.getline(text, 128);
 
         if (strlen(text) > 0) {
+            saveState(1);
             if (linesArray[currLine] == NULL) {
                 linesArray[currLine] = (char*)malloc((strlen(text) + 1) * sizeof(char));
                 if (linesArray[currLine] == NULL) {
@@ -131,6 +205,7 @@ public:
     }
 
     void newLine() {
+        saveState(2);
         currLine++;
         if (currLine >= maxLines) {
             maxLines *= 2;
@@ -180,8 +255,8 @@ public:
         std::cin.getline(insertText, 128);
 
         if (strlen(insertText) > 0) {
+            saveState(6);
             size_t lenInsertText = strlen(insertText);
-
             size_t lineLen = strlen(linesArray[lineIndex]);
 
             if (charIndex < 0 || (size_t)charIndex > lineLen) {
@@ -260,6 +335,7 @@ public:
             return;
         }
 
+        saveState(8);
         memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
         lineSizes[lineIndex] -= numChars;
         linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
@@ -269,7 +345,7 @@ public:
         }
 
         std::cout << "Characters deleted successfully." << std::endl;
-        }
+    }
 
     void run() {
         int userChoice = -1;
@@ -306,6 +382,26 @@ public:
             case 8:
                 deleteChars();
                 break;
+            case 9:
+            {
+                int command;
+                std::string state;
+                if (commandManager.undo(command, state)) {
+                    restoreState(state);
+                    std::cout << "Undo successful." << std::endl;
+                }
+            }
+            break;
+            case 10:
+            {
+                int command;
+                std::string state;
+                if (commandManager.redo(command, state)) {
+                    restoreState(state);
+                    std::cout << "Redo successful." << std::endl;
+                }
+            }
+            break;
             default:
                 std::cout << "Invalid choice, please try again." << std::endl;
             }
@@ -320,11 +416,10 @@ public:
         free(lineSizes);
     }
 };
+
 int main() {
     TextEditor editor;
     editor.run();
 
     return 0;
 }
-
-
