@@ -37,7 +37,7 @@ public:
         }
 
         char line[128];
-        int lineIndex = currLine + 1;  // Start appending after the current line
+        int lineIndex = currLine + 1;
         while (file.getline(line, 128)) {
             size_t len = strlen(line);
             if (lineIndex >= maxLines) {
@@ -49,7 +49,6 @@ public:
                     file.close();
                     exit(EXIT_FAILURE);
                 }
-                // Initialize new lines and sizes
                 for (int i = lineIndex; i < maxLines; i++) {
                     linesArray[i] = NULL;
                     lineSizes[i] = 0;
@@ -68,7 +67,7 @@ public:
         }
 
         file.close();
-        currLine = lineIndex - 1;  // Update the current line to the last line appended
+        currLine = lineIndex - 1;
         std::cout << "Text has been loaded successfully." << std::endl;
     }
 };
@@ -242,6 +241,36 @@ public:
         }
     }
 
+    void deleteChars() {
+        int lineIndex, charIndex, numChars;
+
+        std::cout << "Choose line, index and number of symbols: ";
+        std::cin >> lineIndex >> charIndex >> numChars;
+        std::cin.ignore();
+
+        if (lineIndex < 0 || lineIndex >= maxLines || linesArray[lineIndex] == NULL) {
+            std::cout << "Invalid line index or line is empty." << std::endl;
+            return;
+        }
+
+        size_t lineLen = strlen(linesArray[lineIndex]);
+
+        if (charIndex < 0 || charIndex >= lineLen || numChars <= 0 || (size_t)(charIndex + numChars) > lineLen) {
+            std::cout << "Invalid character index or number of symbols." << std::endl;
+            return;
+        }
+
+        memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
+        lineSizes[lineIndex] -= numChars;
+        linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
+        if (linesArray[lineIndex] == NULL) {
+            std::cout << "Memory reallocation failed." << std::endl;
+            return;
+        }
+
+        std::cout << "Characters deleted successfully." << std::endl;
+        }
+
     void run() {
         int userChoice = -1;
         while (userChoice != 0) {
@@ -274,6 +303,9 @@ public:
             case 7:
                 searchWord();
                 break;
+            case 8:
+                deleteChars();
+                break;
             default:
                 std::cout << "Invalid choice, please try again." << std::endl;
             }
@@ -288,7 +320,6 @@ public:
         free(lineSizes);
     }
 };
-
 int main() {
     TextEditor editor;
     editor.run();
