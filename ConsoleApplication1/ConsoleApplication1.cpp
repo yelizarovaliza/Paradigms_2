@@ -78,6 +78,7 @@ private:
     size_t* lineSizes;
     int currLine;
     int maxLines;
+    char* cutCopySaver;
 
 public:
     TextEditor() {
@@ -85,6 +86,7 @@ public:
         currLine = 0;
         linesArray = (char**)malloc(maxLines * sizeof(char*));
         lineSizes = (size_t*)malloc(maxLines * sizeof(size_t));
+        cutCopySaver = NULL;
         if (linesArray == NULL || lineSizes == NULL) {
             std::cout << "Memory allocation failed." << std::endl;
             exit(EXIT_FAILURE);
@@ -210,6 +212,7 @@ public:
     void searchWord() {
         char searchTerm[128];
         std::cout << "Enter text to search: ";
+        std::cin.ignore();
         std::cin.getline(searchTerm, 128);
 
         if (strlen(searchTerm) > 0) {
@@ -271,6 +274,115 @@ public:
         std::cout << "Characters deleted successfully." << std::endl;
     }
 
+    void cutText() {
+        int lineIndex, charIndex, numChars;
+
+        std::cout << "Choose line, index and number of symbols: ";
+        std::cin >> lineIndex >> charIndex >> numChars;
+        std::cin.ignore();
+
+        if (lineIndex < 0 || lineIndex >= maxLines || linesArray[lineIndex] == NULL) {
+            std::cout << "Invalid line index or line is empty." << std::endl;
+            return;
+        }
+
+        size_t lineLen = strlen(linesArray[lineIndex]);
+
+        if (charIndex < 0 || charIndex >= lineLen || numChars <= 0 || (size_t)(charIndex + numChars) > lineLen) {
+            std::cout << "Invalid character index or number of symbols." << std::endl;
+            return;
+        }
+
+        cutCopySaver = (char*)realloc(cutCopySaver, (numChars + 1) * sizeof(char));
+        if (cutCopySaver == NULL) {
+            std::cout << "Memory allocation for clipboard failed." << std::endl;
+            return;
+        }
+
+        strncpy_s(cutCopySaver, numChars + 1, &linesArray[lineIndex][charIndex], numChars);
+        cutCopySaver[numChars] = '\0';
+
+        memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
+        lineSizes[lineIndex] -= numChars;
+        linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
+        if (linesArray[lineIndex] == NULL) {
+            std::cout << "Memory reallocation failed." << std::endl;
+            return;
+        }
+
+        std::cout << "Text cut successfully." << std::endl;
+    }
+
+    void copyText() {
+        int lineIndex, charIndex, numChars;
+
+        std::cout << "Choose line, index and number of symbols: ";
+        std::cin >> lineIndex >> charIndex >> numChars;
+        std::cin.ignore();
+
+        if (lineIndex < 0 || lineIndex >= maxLines || linesArray[lineIndex] == NULL) {
+            std::cout << "Invalid line index or line is empty." << std::endl;
+            return;
+        }
+
+        size_t lineLen = strlen(linesArray[lineIndex]);
+
+        if (charIndex < 0 || charIndex >= lineLen || numChars <= 0 || (size_t)(charIndex + numChars) > lineLen) {
+            std::cout << "Invalid character index or number of symbols." << std::endl;
+            return;
+        }
+
+        cutCopySaver = (char*)realloc(cutCopySaver, (numChars + 1) * sizeof(char));
+        if (cutCopySaver == NULL) {
+            std::cout << "Memory allocation for clipboard failed." << std::endl;
+            return;
+        }
+
+        strncpy_s(cutCopySaver, numChars + 1, &linesArray[lineIndex][charIndex], numChars);
+        cutCopySaver[numChars] = '\0';
+
+        std::cout << "Text copied successfully." << std::endl;
+    }
+
+    void pasteText() {
+        if (cutCopySaver == NULL) {
+            std::cout << "Buffer is empty." << std::endl;
+            return;
+        }
+
+        int lineIndex, charIndex;
+
+        std::cout << "Choose line and index: ";
+        std::cin >> lineIndex >> charIndex;
+        std::cin.ignore();
+
+        if (lineIndex < 0 || lineIndex >= maxLines || linesArray[lineIndex] == NULL) {
+            std::cout << "Invalid line index or line is empty." << std::endl;
+            return;
+        }
+
+        size_t lineLen = strlen(linesArray[lineIndex]);
+        size_t clipboardLen = strlen(cutCopySaver);
+
+        if (charIndex < 0 || (size_t)charIndex > lineLen) {
+            std::cout << "Invalid character index." << std::endl;
+            return;
+        }
+
+        lineSizes[lineIndex] += clipboardLen;
+        linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
+        if (linesArray[lineIndex] == NULL) {
+            std::cout << "Memory reallocation failed." << std::endl;
+            return;
+        }
+
+        memmove(&linesArray[lineIndex][charIndex + clipboardLen], &linesArray[lineIndex][charIndex], lineLen - charIndex + 1);
+        memcpy(&linesArray[lineIndex][charIndex], cutCopySaver, clipboardLen);
+
+        std::cout << "Text pasted successfully." << std::endl;
+    }
+
+
     void run() {
         int userChoice = -1;
         while (userChoice != 0) {
@@ -306,6 +418,15 @@ public:
             case 8:
                 deleteChars();
                 break;
+            case 11:
+                cutText();
+                break;
+            case 12:
+                copyText();
+                break;
+            case 13:
+                pasteText();
+                break;
             default:
                 std::cout << "Invalid choice, please try again." << std::endl;
             }
@@ -318,8 +439,12 @@ public:
         }
         free(linesArray);
         free(lineSizes);
+        if (cutCopySaver != NULL) {
+            free(cutCopySaver);
+        }
     }
 };
+
 int main() {
     TextEditor editor;
     editor.run();
