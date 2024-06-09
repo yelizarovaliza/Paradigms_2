@@ -382,6 +382,46 @@ public:
         std::cout << "Text pasted successfully." << std::endl;
     }
 
+    void insertPlace() {
+        int lineIndex, charIndex;
+        char insertText[128];
+
+        std::cout << "Choose line and index: ";
+        std::cin >> lineIndex >> charIndex;
+        std::cin.ignore();
+
+        if (lineIndex < 0 || lineIndex >= maxLines || linesArray[lineIndex] == NULL) {
+            std::cout << "Invalid line index or line is empty." << std::endl;
+            return;
+        }
+
+        std::cout << "Write text: ";
+        std::cin.getline(insertText, 128);
+
+        if (strlen(insertText) > 0) {
+            size_t lenInsertText = strlen(insertText);
+
+            size_t lineLen = strlen(linesArray[lineIndex]);
+
+            if (charIndex < 0 || (size_t)charIndex > lineLen) {
+                std::cout << "Invalid character index." << std::endl;
+                return;
+            }
+
+            lineSizes[lineIndex] += lenInsertText;
+            linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
+            if (linesArray[lineIndex] == NULL) {
+                std::cout << "Memory reallocation failed." << std::endl;
+                return;
+            }
+
+            memmove(&linesArray[lineIndex][charIndex + lenInsertText], &linesArray[lineIndex][charIndex], lineLen - charIndex + 1);
+            memcpy(&linesArray[lineIndex][charIndex], insertText, lenInsertText);
+
+            std::cout << "Text has been inserted successfully." << std::endl;
+            std::cout << "Updated line content: " << linesArray[lineIndex] << std::endl;
+        }
+    };
 
     void run() {
         int userChoice = -1;
@@ -426,6 +466,9 @@ public:
                 break;
             case 13:
                 pasteText();
+                break;
+            case 14:
+                insertPlace();
                 break;
             default:
                 std::cout << "Invalid choice, please try again." << std::endl;
