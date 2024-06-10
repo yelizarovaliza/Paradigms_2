@@ -1,6 +1,51 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <stack>
+#include <deque>
+#include <sstream>
+#include <string>
+
+class UndoRedo {
+private:
+    std::deque<std::pair<int, std::string>> history;
+    std::deque<std::pair<int, std::string>> redoStack;
+
+public:
+    void addCommand(int command, const std::string& state) {
+        if (history.size() == 3) {
+            history.pop_front();
+        }
+        history.push_back({ command, state });
+        redoStack.clear();
+    }
+
+    bool undo(int& command, std::string& state) {
+        if (history.empty()) {
+            std::cout << "No commands to undo." << std::endl;
+            return false;
+        }
+        auto lastCommand = history.back();
+        history.pop_back();
+        command = lastCommand.first;
+        state = lastCommand.second;
+        redoStack.push_back(lastCommand);
+        return true;
+    }
+
+    bool redo(int& command, std::string& state) {
+        if (redoStack.empty()) {
+            std::cout << "No commands to redo." << std::endl;
+            return false;
+        }
+        auto lastCommand = redoStack.back();
+        redoStack.pop_back();
+        command = lastCommand.first;
+        state = lastCommand.second;
+        history.push_back(lastCommand);
+        return true;
+    }
+};
 
 class FileHandler {
 public:
@@ -79,6 +124,7 @@ private:
     int currLine;
     int maxLines;
     char* cutCopySaver;
+    UndoRedo UndoRedo;
 
 public:
     TextEditor() {
@@ -96,6 +142,33 @@ public:
             linesArray[i] = NULL;
             lineSizes[i] = 0;
         }
+    }
+
+    void saveState(int command) {
+        std::string state;
+        for (int i = 0; i <= currLine; i++) {
+            if (linesArray[i] != NULL) {
+                state += linesArray[i];
+                state += "\n";
+            }
+        }
+        UndoRedo.addCommand(command, state);
+    }
+
+    void restoreState(const std::string& state) {
+        std::istringstream iss(state);
+        std::string line;
+        currLine = 0;
+        while (std::getline(iss, line)) {
+            if (linesArray[currLine] != NULL) {
+                free(linesArray[currLine]);
+            }
+            linesArray[currLine] = (char*)malloc((line.size() + 1) * sizeof(char));
+            strcpy_s(linesArray[currLine], line.size() + 1, line.c_str());
+            lineSizes[currLine] = line.size() + 1;
+            currLine++;
+        }
+        currLine--;
     }
 
     void addText() {
@@ -133,6 +206,7 @@ public:
     }
 
     void newLine() {
+        saveState(2);
         currLine++;
         if (currLine >= maxLines) {
             maxLines *= 2;
@@ -262,7 +336,7 @@ public:
             std::cout << "Invalid character index or number of symbols." << std::endl;
             return;
         }
-
+        saveState(8);
         memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
         lineSizes[lineIndex] -= numChars;
         linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
@@ -458,6 +532,26 @@ public:
             case 8:
                 deleteChars();
                 break;
+            case 9:
+            {
+                int command;
+                std::string state;
+                if (UndoRedo.undo(command, state)) {
+                    restoreState(state);
+                    std::cout << "Undo successful." << std::endl;
+                }
+            }
+            break;
+            case 10:
+            {
+                int command;
+                std::string state;
+                if (UndoRedo.redo(command, state)) {
+                    restoreState(state);
+                    std::cout << "Redo successful." << std::endl;
+                }
+            }
+            break;
             case 11:
                 cutText();
                 break;
