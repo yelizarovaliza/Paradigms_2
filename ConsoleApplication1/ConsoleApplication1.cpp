@@ -2,50 +2,10 @@
 #include <fstream>
 #include <cstring>
 #include <stack>
-#include <deque>
+// #include <deque>
 #include <sstream>
 #include <string>
 
-class UndoRedo {
-private:
-    std::deque<std::pair<int, std::string>> history;
-    std::deque<std::pair<int, std::string>> redoStack;
-
-public:
-    void addCommand(int command, const std::string& state) {
-        if (history.size() == 3) {
-            history.pop_front();
-        }
-        history.push_back({ command, state });
-        redoStack.clear();
-    }
-
-    bool undo(int& command, std::string& state) {
-        if (history.empty()) {
-            std::cout << "No commands to undo." << std::endl;
-            return false;
-        }
-        auto lastCommand = history.back();
-        history.pop_back();
-        command = lastCommand.first;
-        state = lastCommand.second;
-        redoStack.push_back(lastCommand);
-        return true;
-    }
-
-    bool redo(int& command, std::string& state) {
-        if (redoStack.empty()) {
-            std::cout << "No commands to redo." << std::endl;
-            return false;
-        }
-        auto lastCommand = redoStack.back();
-        redoStack.pop_back();
-        command = lastCommand.first;
-        state = lastCommand.second;
-        history.push_back(lastCommand);
-        return true;
-    }
-};
 
 class FileHandler {
 public:
@@ -124,7 +84,43 @@ private:
     int currLine;
     int maxLines;
     char* cutCopySaver;
-    UndoRedo UndoRedo;
+    std::stack<std::string> undoStack;
+    std::stack<std::string> redoStack;
+
+    void saveState() {
+        std::string state;
+        for (int i = 0; i <= currLine; i++) {
+            if (linesArray[i] != NULL) {
+                state += linesArray[i];
+            }
+            state += '\n';
+        }
+        undoStack.push(state);
+        if (undoStack.size() > 3) {
+            undoStack.pop();
+        }
+    }
+
+    void restoreState(const std::string& state) {
+        std::istringstream ss(state);
+        std::string line;
+        currLine = 0;
+        while (std::getline(ss, line)) {
+            if (linesArray[currLine] != NULL) {
+                free(linesArray[currLine]);
+            }
+            linesArray[currLine] = (char*)malloc((line.length() + 1) * sizeof(char));
+            if (linesArray[currLine] == NULL) {
+                std::cout << "Memory allocation failed." << std::endl;
+                return;
+            }
+            strcpy_s(linesArray[currLine], line.length() + 1, line.c_str());
+            lineSizes[currLine] = line.length() + 1;
+            currLine++;
+        }
+        currLine--;
+    }
+
 
 public:
     TextEditor() {
@@ -144,34 +140,8 @@ public:
         }
     }
 
-    void saveState(int command) {
-        std::string state;
-        for (int i = 0; i <= currLine; i++) {
-            if (linesArray[i] != NULL) {
-                state += linesArray[i];
-                state += "\n";
-            }
-        }
-        UndoRedo.addCommand(command, state);
-    }
-
-    void restoreState(const std::string& state) {
-        std::istringstream iss(state);
-        std::string line;
-        currLine = 0;
-        while (std::getline(iss, line)) {
-            if (linesArray[currLine] != NULL) {
-                free(linesArray[currLine]);
-            }
-            linesArray[currLine] = (char*)malloc((line.size() + 1) * sizeof(char));
-            strcpy_s(linesArray[currLine], line.size() + 1, line.c_str());
-            lineSizes[currLine] = line.size() + 1;
-            currLine++;
-        }
-        currLine--;
-    }
-
     void addText() {
+        saveState();
         char text[128];
         std::cout << "Enter text to append: ";
         std::cin.getline(text, 128);
@@ -206,7 +176,7 @@ public:
     }
 
     void newLine() {
-        saveState(2);
+        saveState();
         currLine++;
         if (currLine >= maxLines) {
             maxLines *= 2;
@@ -240,6 +210,7 @@ public:
     }
 
     void addTextCoordinates() {
+        saveState();
         int lineIndex, charIndex;
         char insertText[128];
 
@@ -319,6 +290,7 @@ public:
     }
 
     void deleteChars() {
+        saveState();
         int lineIndex, charIndex, numChars;
 
         std::cout << "Choose line, index and number of symbols: ";
@@ -336,7 +308,7 @@ public:
             std::cout << "Invalid character index or number of symbols." << std::endl;
             return;
         }
-        saveState(8);
+        //saveState(8);
         memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
         lineSizes[lineIndex] -= numChars;
         linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
@@ -349,6 +321,7 @@ public:
     }
 
     void cutText() {
+        saveState();
         int lineIndex, charIndex, numChars;
 
         std::cout << "Choose line, index and number of symbols: ";
@@ -388,6 +361,7 @@ public:
     }
 
     void copyText() {
+        saveState();
         int lineIndex, charIndex, numChars;
 
         std::cout << "Choose line, index and number of symbols: ";
@@ -419,6 +393,7 @@ public:
     }
 
     void pasteText() {
+        saveState();
         if (cutCopySaver == NULL) {
             std::cout << "Buffer is empty." << std::endl;
             return;
@@ -457,6 +432,7 @@ public:
     }
 
     void insertPlace() {
+        saveState();
         int lineIndex, charIndex;
         char insertText[128];
 
@@ -495,7 +471,33 @@ public:
             std::cout << "Text has been inserted successfully." << std::endl;
             std::cout << "Updated line content: " << linesArray[lineIndex] << std::endl;
         }
-    };
+    }
+
+    void undo() {
+        if (undoStack.empty()) {
+            std::cout << "Nothing to undo." << std::endl;
+            return;
+        }
+        std::string state = undoStack.top();
+        undoStack.pop();
+        redoStack.push(state);
+        if (!undoStack.empty()) {
+            restoreState(undoStack.top());
+        }
+        else {
+            std::cout << "Nothing to undo." << std::endl;
+        }
+    }
+
+    void redo() {
+        if (redoStack.empty()) {
+            std::cout << "Nothing to redo." << std::endl;
+            return;
+        }
+        std::string state = redoStack.top();
+        redoStack.pop();
+        restoreState(state);
+    }
 
     void run() {
         int userChoice = -1;
@@ -533,24 +535,11 @@ public:
                 deleteChars();
                 break;
             case 9:
-            {
-                int command;
-                std::string state;
-                if (UndoRedo.undo(command, state)) {
-                    restoreState(state);
-                    std::cout << "Undo successful." << std::endl;
-                }
-            }
-            break;
+                undo();
+                break;
             case 10:
-            {
-                int command;
-                std::string state;
-                if (UndoRedo.redo(command, state)) {
-                    restoreState(state);
-                    std::cout << "Redo successful." << std::endl;
-                }
-            }
+                redo();
+                break;
             break;
             case 11:
                 cutText();
