@@ -2,7 +2,6 @@
 #include <fstream>
 #include <cstring>
 #include <stack>
-// #include <deque>
 #include <sstream>
 #include <string>
 
@@ -308,7 +307,6 @@ public:
             std::cout << "Invalid character index or number of symbols." << std::endl;
             return;
         }
-        //saveState(8);
         memmove(&linesArray[lineIndex][charIndex], &linesArray[lineIndex][charIndex + numChars], lineLen - charIndex - numChars + 1);
         lineSizes[lineIndex] -= numChars;
         linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
@@ -478,15 +476,22 @@ public:
             std::cout << "Nothing to undo." << std::endl;
             return;
         }
-        std::string state = undoStack.top();
+
+        // Save current state to redo stack before undoing
+        std::string currentState;
+        for (int i = 0; i <= currLine; i++) {
+            if (linesArray[i] != NULL) {
+                currentState += linesArray[i];
+            }
+            currentState += '\n';
+        }
+        redoStack.push(currentState);
+
+        std::string lastState = undoStack.top();
         undoStack.pop();
-        redoStack.push(state);
-        if (!undoStack.empty()) {
-            restoreState(undoStack.top());
-        }
-        else {
-            std::cout << "Nothing to undo." << std::endl;
-        }
+        restoreState(lastState);
+
+        std::cout << "Undo operation completed." << std::endl;
     }
 
     void redo() {
@@ -494,9 +499,22 @@ public:
             std::cout << "Nothing to redo." << std::endl;
             return;
         }
-        std::string state = redoStack.top();
+
+        // Save current state to undo stack before redoing
+        std::string currentState;
+        for (int i = 0; i <= currLine; i++) {
+            if (linesArray[i] != NULL) {
+                currentState += linesArray[i];
+            }
+            currentState += '\n';
+        }
+        undoStack.push(currentState);
+
+        std::string nextState = redoStack.top();
         redoStack.pop();
-        restoreState(state);
+        restoreState(nextState);
+
+        std::cout << "Redo operation completed." << std::endl;
     }
 
     void run() {
@@ -540,7 +558,6 @@ public:
             case 10:
                 redo();
                 break;
-            break;
             case 11:
                 cutText();
                 break;
