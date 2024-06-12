@@ -4,6 +4,8 @@
 #include <stack>
 #include <sstream>
 #include <string>
+#include <conio.h>
+#include <windows.h>
 
 #define CLEAR_COMMAND "cls"
 #define KEY_UP 72
