@@ -4,14 +4,7 @@
 #include <stack>
 #include <sstream>
 #include <string>
-#include <conio.h>
-#include <windows.h>
 
-#define CLEAR_COMMAND "cls"
-#define KEY_UP 72
-#define KEY_DOWN 80
-#define KEY_LEFT 75
-#define KEY_RIGHT 77
 
 class FileHandler {
 public:
@@ -93,9 +86,6 @@ private:
     std::stack<std::string> undoStack;
     std::stack<std::string> redoStack;
 
-    int cursor_line;
-    int cursor_index;
-
     void saveState() {
         std::string state;
         for (int i = 0; i <= currLine; i++) {
@@ -130,102 +120,11 @@ private:
         currLine--;
     }
 
-    void ShowTextWithCursor() {
-        system(CLEAR_COMMAND);
-        for (int i = 0; i <= currLine; ++i) {
-            if (i == cursor_line) {
-                for (int j = 0; j < strlen(linesArray[i]); ++j) {
-                    if (j == cursor_index) {
-                        std::cout << '|';
-                    }
-                    std::cout << linesArray[i][j];
-                }
-                if (cursor_index == strlen(linesArray[i])) {
-                    std::cout << '|';
-                }
-                std::cout << std::endl;
-            }
-            else {
-                std::cout << linesArray[i] << std::endl;
-            }
-        }
-    }
-
-    void moveUp() {
-        cursor_line--;
-        if (cursor_line < 0) cursor_line = 0;
-        cursor_index = std::min(cursor_index, (int)strlen(linesArray[cursor_line]));
-    }
-
-    void moveDown() {
-        cursor_line++;
-        if (cursor_line > currLine) cursor_line = currLine;
-        cursor_index = std::min(cursor_index, (int)strlen(linesArray[cursor_line]));
-    }
-
-    void moveLeft() {
-        cursor_index--;
-        if (cursor_index < 0) {
-            if (cursor_line > 0) {
-                cursor_line--;
-                cursor_index = strlen(linesArray[cursor_line]);
-            }
-            else {
-                cursor_index = 0;
-            }
-        }
-    }
-
-    void moveRight() {
-        cursor_index++;
-        int line_length = strlen(linesArray[cursor_line]);
-        if (cursor_index > line_length) {
-            cursor_index = line_length;
-            if (cursor_line < currLine) {
-                cursor_line++;
-                cursor_index = 0;
-            }
-        }
-    }
-
-    void moveCursor() {
-        while (true) {
-            ShowTextWithCursor();
-
-            if (_kbhit()) {
-                int ch = _getch();
-                if (ch == 224) {
-                    switch (_getch()) {
-                    case KEY_UP:
-                        moveUp();
-                        break;
-                    case KEY_DOWN:
-                        moveDown();
-                        break;
-                    case KEY_LEFT:
-                        moveLeft();
-                        break;
-                    case KEY_RIGHT:
-                        moveRight();
-                        break;
-                    }
-                }
-
-                if (ch == 13) {
-                    break;
-                }
-            }
-
-            Sleep(100);
-        }
-    }
 
 public:
     TextEditor() {
         maxLines = 10;
         currLine = 0;
-        cursor_line = 0;
-        cursor_index = 0;
         linesArray = (char**)malloc(maxLines * sizeof(char*));
         lineSizes = (size_t*)malloc(maxLines * sizeof(size_t));
         cutCopySaver = NULL;
@@ -668,9 +567,6 @@ public:
                 break;
             case 14:
                 insertPlace();
-                break;
-            case 15:
-                moveCursor();
                 break;
             default:
                 std::cout << "Invalid choice, please try again." << std::endl;
