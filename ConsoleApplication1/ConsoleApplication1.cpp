@@ -409,22 +409,22 @@ public:
         }
 
         size_t lineLen = strlen(linesArray[lineIndex]);
-        size_t clipboardLen = strlen(cutCopySaver);
+        size_t cutCoryLen = strlen(cutCopySaver);
 
         if (charIndex < 0 || (size_t)charIndex > lineLen) {
             std::cout << "Invalid character index." << std::endl;
             return;
         }
 
-        lineSizes[lineIndex] += clipboardLen;
+        lineSizes[lineIndex] += cutCoryLen;
         linesArray[lineIndex] = (char*)realloc(linesArray[lineIndex], lineSizes[lineIndex] * sizeof(char));
         if (linesArray[lineIndex] == NULL) {
             std::cout << "Memory reallocation failed." << std::endl;
             return;
         }
 
-        memmove(&linesArray[lineIndex][charIndex + clipboardLen], &linesArray[lineIndex][charIndex], lineLen - charIndex + 1);
-        memcpy(&linesArray[lineIndex][charIndex], cutCopySaver, clipboardLen);
+        memmove(&linesArray[lineIndex][charIndex + cutCoryLen], &linesArray[lineIndex][charIndex], lineLen - charIndex + 1);
+        memcpy(&linesArray[lineIndex][charIndex], cutCopySaver, cutCoryLen);
 
         std::cout << "Text pasted successfully." << std::endl;
     }
